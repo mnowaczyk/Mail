@@ -19,6 +19,7 @@ class SendMailsCommand extends ContainerAwareCommand
     }
 
     protected function execute(InputInterface $input, OutputInterface $output) {
+        $output->writeln("test");
         $container = $this->getContainer();
         $container->get('mail.queue_manager.process')->run();
     }
