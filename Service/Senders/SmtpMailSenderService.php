@@ -26,6 +26,7 @@ class SmtpMailSenderService implements MailSenderInterface {
      */
     public function send($mailQueue)
     {
+        $failedRecipients = [];
         try {
             $message = Message::newInstance()
                 ->setSubject($mailQueue->getTitle())
@@ -34,10 +35,13 @@ class SmtpMailSenderService implements MailSenderInterface {
                 ->setBody($mailQueue->getBody(), 'text/html')
                 ->addPart($mailQueue->getPlainBody(), 'text/plain')
             ;
-            $this->mailer->send($message);
-            return new Response(true);
+            $this->mailer->send($message, $failedRecipients);
         } catch(Exception $exception) {
             return new Response(false, $exception->getMessage());
         }
+        if($failedRecipients){
+            return new Response(false, 'SwiftMailer: sending failed for: '.implode(', ', $failedRecipients));
+        }
+        return new Response(true);
     }
 }

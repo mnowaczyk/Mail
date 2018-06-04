@@ -3,6 +3,7 @@ namespace Jasuwienas\MailBundle\Service;
 
 use Jasuwienas\MailBundle\Component\Response;
 use Jasuwienas\MailBundle\Entity\MailQueue;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
 use Symfony\Component\Translation\TranslatorInterface as Translator;
 use Jasuwienas\MailBundle\Service\QueueManagerService as QueueManager;
@@ -31,6 +32,9 @@ class ProcessQueueService {
     /** @var int */
     private $startTime;
 
+    /** @var OutputInterface */
+    private $output;
+
     /**
      * Currently processed email
      *
@@ -44,7 +48,8 @@ class ProcessQueueService {
         $this->translator = $translator;
     }
 
-    public function run() {
+    public function run(?OutputInterface $output=null) {
+        $this->output = $output;
         $this->initialize();
         while($this->getExecutionTime() < self::MAX_EXECUTION_TIME) {
             $this->sendOneEmail();
@@ -67,6 +72,9 @@ class ProcessQueueService {
                 return $this->waitForEmails();
             }
             $serviceName = 'mail.sender.' . $this->processedMail->getAdapter();
+            if($this->output){
+                $this->output->writeln('Sending message to '.$this->processedMail->getRecipient(), OutputInterface::VERBOSITY_VERBOSE);
+            }
             if (!$this->container->has($serviceName)) {
                 return $this->handleNotExistingAdapter();
             }
@@ -84,11 +92,18 @@ class ProcessQueueService {
             }
             $this->queueManager->handleSuccess($this->processedMail);
         } catch(Exception $exception) {
+            if($this->output){
+                $this->output->writeln('Exception: '.$exception->getMessage());
+            }
             if($this->processedMail instanceof MailQueue) {
                 $this->queueManager->handleNextAttempt($this->processedMail, $exception->getMessage());
             }
             return false;
         }
+        if($this->output){
+            $this->output->writeln ("End sending", OutputInterface::VERBOSITY_VERBOSE);
+        }
+
         return true;
     }
 
